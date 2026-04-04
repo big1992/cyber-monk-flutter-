@@ -24,6 +24,11 @@ class Bullet extends RectangleComponent with HasGameRef<CyberMonkGame>, Collisio
   // Trail System
   final List<Vector2> _trail = [];
   double _trailTimer = 0;
+
+  // Pre-cached Paints for render performance
+  late Paint _glowPaint;
+  late Paint _corePaint;
+  late Rect _glowRect;
   
   // Failsafe Lifespan
   double _lifespan = 5.0;
@@ -51,48 +56,41 @@ class Bullet extends RectangleComponent with HasGameRef<CyberMonkGame>, Collisio
   @override
   Future<void> onLoad() async {
     add(RectangleHitbox());
+    // Pre-cache paint objects to avoid allocation every frame
+    _glowPaint = Paint()..color = paint.color.withOpacity(0.4);
+    _corePaint = Paint()..color = Colors.white;
+    _glowRect = size.toRect().inflate(4.0);
   }
 
   @override
   void render(Canvas canvas) {
+      // Draw trail (max 4 segments for mobile)
       if (_trail.length > 1) {
-          for (int i = 0; i < _trail.length - 1; i++) {
-              double progress = (i + 1) / _trail.length;
-              Paint trailP = Paint()
-                 ..color = paint.color.withOpacity(0.5 * progress)
+          final int len = _trail.length;
+          for (int i = 0; i < len - 1; i++) {
+              double progress = (i + 1) / len;
+              final Paint trailP = Paint()
+                 ..color = paint.color.withOpacity(0.4 * progress)
                  ..style = PaintingStyle.stroke
-                 ..strokeWidth = isCleansing ? 10 * progress : 6 * progress;
-                 // Removed expensive MaskFilter.blur to optimize extreme lag
-              
+                 ..strokeWidth = isCleansing ? 8 * progress : 4 * progress;
               Vector2 startP = _trail[i] - position + size/2;
               Vector2 endP = _trail[i+1] - position + size/2;
               canvas.drawLine(startP.toOffset(), endP.toOffset(), trailP);
           }
       }
 
-      // Draw Main Projectile Layered Glow
-      Paint glowP = Paint()..color = paint.color.withOpacity(0.4);
-      // Fake glow by drawing slightly larger un-blurred shape
-      Rect glowRect = size.toRect().inflate(4.0);
-      Paint coreP = Paint()..color = Colors.white;
-
+      // Draw Main Projectile (cached paints)
       if (isCleansing) {
-          // Crescent Wave (Rect)
-          canvas.drawRect(glowRect, glowP);
-          canvas.drawRect(size.toRect(), Paint()..color = Colors.white54);
+          canvas.drawRect(_glowRect, _glowPaint);
+          canvas.drawRect(size.toRect(), _corePaint);
       } else if (isHoming) {
-          // Purple Skulls (Diamond)
-          Path glowPath = Path();
-          glowPath.moveTo(size.x/2, -4); glowPath.lineTo(size.x+4, size.y/2); glowPath.lineTo(size.x/2, size.y+4); glowPath.lineTo(-4, size.y/2); glowPath.close();
-          canvas.drawPath(glowPath, glowP);
-          
-          Path p = Path();
+          final Path p = Path();
           p.moveTo(size.x/2, 0); p.lineTo(size.x, size.y/2); p.lineTo(size.x/2, size.y); p.lineTo(0, size.y/2); p.close();
-          canvas.drawPath(p, coreP);
+          canvas.drawPath(p, _glowPaint);
+          canvas.drawPath(p, _corePaint);
       } else {
-          // Laser Beams (Rect)
-          canvas.drawRect(glowRect, glowP);
-          canvas.drawRect(size.toRect(), coreP);
+          canvas.drawRect(_glowRect, _glowPaint);
+          canvas.drawRect(size.toRect(), _corePaint);
       }
   }
 
@@ -128,12 +126,12 @@ class Bullet extends RectangleComponent with HasGameRef<CyberMonkGame>, Collisio
     
     position.add(velocity * dt);
 
-    // Track trail
+    // Track trail - only 4 points max on mobile
     _trailTimer += dt;
-    if (_trailTimer > 0.02) {
+    if (_trailTimer > 0.04) {
         _trailTimer = 0;
         _trail.add(position.clone());
-        if (_trail.length > (isCleansing ? 3 : 8)) {
+        if (_trail.length > 4) {
             _trail.removeAt(0);
         }
     }

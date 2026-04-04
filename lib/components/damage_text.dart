@@ -2,44 +2,54 @@ import 'package:flame/components.dart';
 import 'package:flame/effects.dart';
 import 'package:flutter/material.dart';
 
-class DamageText extends TextComponent {
+class DamageText extends PositionComponent {
+  final String _text;
+  final Color _color;
+  final double _fontSize;
+
+  double life = 0.8;
+  double timer = 0;
+
+  // Pre-built painters — created ONCE, not every frame
+  late final TextPainter _painter;
+
   DamageText({
     required String text,
     required Vector2 position,
     bool isCritical = false,
-  }) : super(
-          text: text,
-          position: position,
-          anchor: Anchor.center,
-          textRenderer: TextPaint(
-            style: TextStyle(
-              color: isCritical ? Colors.yellowAccent : Colors.redAccent,
-              fontSize: isCritical ? 24 : 16,
-              fontWeight: FontWeight.bold,
-              fontFamily: 'Courier',
-              shadows: [
-                Shadow(
-                  color: isCritical ? Colors.orange : Colors.black,
-                  blurRadius: 4,
-                ),
-              ],
-            ),
-          ),
-        );
-
-  double life = 0.8;
-  double timer = 0;
-  late final Color _baseColor;
+  })  : _text = text,
+        _color = isCritical ? Colors.yellowAccent : Colors.redAccent,
+        _fontSize = isCritical ? 24 : 16,
+        super(position: position, anchor: Anchor.center);
 
   @override
   Future<void> onLoad() async {
-    _baseColor = (textRenderer as TextPaint).style.color!;
-    
-    // Float upwards
+    _painter = TextPainter(
+      text: TextSpan(
+        text: _text,
+        style: TextStyle(
+          color: _color,
+          fontSize: _fontSize,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    // Float upwards via Flame effect (no per-frame overhead)
     add(MoveByEffect(
       Vector2(0, -50),
       EffectController(duration: life, curve: Curves.easeOut),
     ));
+  }
+
+  @override
+  void render(Canvas canvas) {
+    if (timer >= life) return;
+    double opacity = (1.0 - (timer / life)).clamp(0.0, 1.0);
+    canvas.saveLayer(null, Paint()..color = Color.fromARGB((opacity * 255).toInt(), 255, 255, 255));
+    _painter.paint(canvas, Offset.zero);
+    canvas.restore();
   }
 
   @override
@@ -48,13 +58,6 @@ class DamageText extends TextComponent {
     timer += dt;
     if (timer >= life) {
       removeFromParent();
-    } else {
-      double opacity = 1.0 - (timer / life);
-      textRenderer = TextPaint(
-        style: (textRenderer as TextPaint).style.copyWith(
-              color: _baseColor.withOpacity(opacity.clamp(0.0, 1.0)),
-            ),
-      );
     }
   }
 }

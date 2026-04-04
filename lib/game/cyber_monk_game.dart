@@ -68,6 +68,12 @@ class CyberMonkGame extends FlameGame with PanDetector, HasCollisionDetection {
     }
 
     _spawnEnemies(dt);
+
+    // Mobile perf: cap total active player bullets at 80, remove oldest first
+    final playerBullets = children.whereType<Bullet>().where((b) => b.isPlayerOwned).toList();
+    if (playerBullets.length > 80) {
+      playerBullets.first.removeFromParent();
+    }
   }
 
   void _spawnEnemies(double dt) {
