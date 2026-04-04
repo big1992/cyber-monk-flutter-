@@ -6,6 +6,8 @@ import '../components/player.dart';
 import '../components/enemy.dart';
 import '../components/boss.dart';
 import '../systems/karma_system.dart';
+import '../data/save_system.dart';
+import '../systems/audio_system.dart';
 
 class CyberMonkGame extends FlameGame with PanDetector, HasCollisionDetection {
   late Player player;
@@ -29,6 +31,10 @@ class CyberMonkGame extends FlameGame with PanDetector, HasCollisionDetection {
     player = Player(
       position: Vector2(size.x / 2, size.y - 100),
     );
+    // Apply permanent Dojo upgrades
+    player.maxHealth += SaveSystem.upgradedMaxHealth;
+    player.health = player.maxHealth;
+    player.baseDamage += SaveSystem.upgradedBaseDamage;
     add(player);
 
     karmaSystem.addListener(_onKarmaChanged);
@@ -82,6 +88,12 @@ class CyberMonkGame extends FlameGame with PanDetector, HasCollisionDetection {
       EnemyType type = rng.nextDouble() > 0.8 ? EnemyType.ninja : EnemyType.scrapper;
       if (currentWave > 5 && rng.nextDouble() > 0.9) {
         type = EnemyType.tank;
+      } else if (currentWave > 2 && rng.nextDouble() > 0.85) {
+        type = EnemyType.kamikaze;
+      } else if (currentWave > 3 && rng.nextDouble() > 0.9) {
+        type = EnemyType.turret;
+        // Turrets spawn at the very top edge
+        startX = rng.nextDouble() > 0.5 ? 20.0 : size.x - 20.0;
       }
 
       add(Enemy(
@@ -96,6 +108,7 @@ class CyberMonkGame extends FlameGame with PanDetector, HasCollisionDetection {
 
   void _triggerBossWarning() {
     bossWarningShown = true;
+    AudioSystem.playSFX('boss.wav');
     // Clear all current enemies
     removeWhere((c) => c is Enemy);
 
@@ -114,6 +127,8 @@ class CyberMonkGame extends FlameGame with PanDetector, HasCollisionDetection {
   }
 
   void onBossDead() {
+    SaveSystem.addCrystals(10); // Reward for boss kill
+    
     bossAlive = false;
     bossWarningShown = false;
     currentWave += 2; // Advance waves after boss kill
@@ -135,9 +150,11 @@ class CyberMonkGame extends FlameGame with PanDetector, HasCollisionDetection {
     isGameStarted = true;
     overlays.remove('MainMenu');
     overlays.add('HUD');
+    AudioSystem.playBGM('bgm.mp3');
   }
 
   void resetGame() {
+    AudioSystem.stopBGM();
     children.forEach((c) {
       if (c != player) remove(c);
     });

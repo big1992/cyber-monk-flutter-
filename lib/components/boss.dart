@@ -2,10 +2,13 @@ import 'dart:math';
 import 'package:flame/collisions.dart';
 import 'package:flame/components.dart';
 import 'package:flame/particles.dart';
+import 'package:flame/effects.dart';
 import 'package:flutter/material.dart';
 import '../game/cyber_monk_game.dart';
 import 'bullet.dart';
 import 'pickup.dart';
+import 'damage_text.dart';
+import '../systems/audio_system.dart';
 
 enum BossPhase { phase1, phase2, phase3 }
 
@@ -232,6 +235,12 @@ class Boss extends PositionComponent with HasGameRef<CyberMonkGame>, CollisionCa
   void takeDamage(double amount) {
     health -= amount;
     hitFlashTimer = 0.08;
+    AudioSystem.playSFX('hit.wav', volume: 0.6);
+
+    // Spawn damage number
+    if (amount >= 1.0) {
+      gameRef.add(DamageText(text: amount.toInt().toString(), position: position.clone(), isCritical: true));
+    }
 
     if (health <= 0 && !isDead) {
       die();
@@ -240,6 +249,18 @@ class Boss extends PositionComponent with HasGameRef<CyberMonkGame>, CollisionCa
 
   void die() {
     isDead = true;
+    AudioSystem.playSFX('explode.wav', volume: 1.0);
+    
+    // Screen shake
+    gameRef.camera.viewfinder.add(
+      MoveByEffect(
+        Vector2(10, 10),
+        RepeatedEffectController(SequenceEffectController([
+          LinearEffectController(0.05),
+          ReverseLinearEffectController(0.05),
+        ]), 5),
+      )
+    );
 
     // Massive death explosion
     gameRef.add(ParticleSystemComponent(

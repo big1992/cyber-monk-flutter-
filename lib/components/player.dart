@@ -5,10 +5,12 @@ import 'package:flutter/material.dart';
 import '../game/cyber_monk_game.dart';
 import '../data/skills.dart';
 import 'bullet.dart';
+import '../systems/audio_system.dart';
 
 class Player extends PositionComponent with HasGameRef<CyberMonkGame>, CollisionCallbacks {
   double maxHealth = 100;
   double health = 100;
+  double baseDamage = 10;
   bool isDead = false;
 
   double fireTimer = 0;
@@ -48,7 +50,7 @@ class Player extends PositionComponent with HasGameRef<CyberMonkGame>, Collision
 
   // Damage / Risk (Dark)
   int demonBladePierces = 0;
-  bool hasShadowClone = false;
+  int shadowCloneCount = 0;
   double corpseExplosionDmgPct = 0.0; 
   double vengefulSpiritThreshold = 0.0; // 0.0 to 1.0
   int homingSkullsPerNShots = 0; 
@@ -191,14 +193,14 @@ class Player extends PositionComponent with HasGameRef<CyberMonkGame>, Collision
   }
 
   void shoot() {
-    double baseDamage = 10 * (1.0 + baseDamageModifier);
-    if (baseDamage < 1.0) baseDamage = 1.0; // Clamp min damage to prevent negative/0 damage
+    double currentBaseDamage = baseDamage * (1.0 + baseDamageModifier);
+    if (currentBaseDamage < 1.0) currentBaseDamage = 1.0; // Clamp min damage to prevent negative/0 damage
 
     double karmaDmgBonus = (gameRef.karmaSystem.karma < 0) 
         ? gameRef.karmaSystem.karma.abs() * 0.005
         : 0;
         
-    double currentDamage = baseDamage * (1.0 + karmaDmgBonus);
+    double currentDamage = currentBaseDamage * (1.0 + karmaDmgBonus);
     if (vengefulSpiritThreshold > 0 && (health / maxHealth) < vengefulSpiritThreshold) {
       currentDamage *= 2.0; // +100% damage if under threshold
     }
@@ -246,6 +248,7 @@ class Player extends PositionComponent with HasGameRef<CyberMonkGame>, Collision
     }
 
     // Main shot
+    AudioSystem.playSFX('shoot.wav', volume: 0.3, throttleMs: 100);
     gameRef.add(spawnPlayerBullet(
       position.clone() - Vector2(0, size.y / 2), 
       Vector2(0, -500), 
@@ -255,9 +258,10 @@ class Player extends PositionComponent with HasGameRef<CyberMonkGame>, Collision
     ));
 
     // Shadows
-    if (hasShadowClone) {
+    for (int i = 1; i <= shadowCloneCount; i++) {
+        double offset = (i % 2 == 1 ? -1 : 1) * 20.0 * ((i + 1) ~/ 2);
         gameRef.add(spawnPlayerBullet(
-          position.clone() - Vector2(20, size.y / 2), 
+          position.clone() + Vector2(offset, -size.y / 2), 
           Vector2(0, -500), 
           currentDamage * 0.3, 
           isHomingMode, 
@@ -309,7 +313,7 @@ class Player extends PositionComponent with HasGameRef<CyberMonkGame>, Collision
     double dmgPenalty = (gameRef.karmaSystem.karma < 0)
         ? gameRef.karmaSystem.karma.abs() * 0.0025
         : 0;
-    if (hasShadowClone) dmgPenalty += 0.1; // Takes 10% more
+    dmgPenalty += 0.1 * shadowCloneCount; // Takes 10% more damage per clone
 
     double finalDmg = amount * (1.0 + dmgPenalty);
     if (gameRef.karmaSystem.karma > 0) {
@@ -362,7 +366,7 @@ class Player extends PositionComponent with HasGameRef<CyberMonkGame>, Collision
     asceticFocusActive = false;
 
     demonBladePierces = 0;
-    hasShadowClone = false;
+    shadowCloneCount = 0;
     corpseExplosionDmgPct = 0.0;
     vengefulSpiritThreshold = 0.0;
     homingSkullsPerNShots = 0;

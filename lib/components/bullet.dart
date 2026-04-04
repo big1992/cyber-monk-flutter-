@@ -55,15 +55,14 @@ class Bullet extends RectangleComponent with HasGameRef<CyberMonkGame>, Collisio
 
   @override
   void render(Canvas canvas) {
-      // Draw Trail
       if (_trail.length > 1) {
           for (int i = 0; i < _trail.length - 1; i++) {
               double progress = (i + 1) / _trail.length;
               Paint trailP = Paint()
                  ..color = paint.color.withOpacity(0.5 * progress)
                  ..style = PaintingStyle.stroke
-                 ..strokeWidth = isCleansing ? 10 * progress : 6 * progress
-                 ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
+                 ..strokeWidth = isCleansing ? 10 * progress : 6 * progress;
+                 // Removed expensive MaskFilter.blur to optimize extreme lag
               
               Vector2 startP = _trail[i] - position + size/2;
               Vector2 endP = _trail[i+1] - position + size/2;
@@ -72,26 +71,28 @@ class Bullet extends RectangleComponent with HasGameRef<CyberMonkGame>, Collisio
       }
 
       // Draw Main Projectile Layered Glow
-      Paint glowP = Paint()
-        ..color = paint.color
-        ..maskFilter = const MaskFilter.blur(BlurStyle.outer, 8);
+      Paint glowP = Paint()..color = paint.color.withOpacity(0.4);
+      // Fake glow by drawing slightly larger un-blurred shape
+      Rect glowRect = size.toRect().inflate(4.0);
       Paint coreP = Paint()..color = Colors.white;
 
       if (isCleansing) {
           // Crescent Wave (Rect)
-          canvas.drawRect(size.toRect(), glowP);
+          canvas.drawRect(glowRect, glowP);
           canvas.drawRect(size.toRect(), Paint()..color = Colors.white54);
       } else if (isHoming) {
           // Purple Skulls (Diamond)
+          Path glowPath = Path();
+          glowPath.moveTo(size.x/2, -4); glowPath.lineTo(size.x+4, size.y/2); glowPath.lineTo(size.x/2, size.y+4); glowPath.lineTo(-4, size.y/2); glowPath.close();
+          canvas.drawPath(glowPath, glowP);
+          
           Path p = Path();
           p.moveTo(size.x/2, 0); p.lineTo(size.x, size.y/2); p.lineTo(size.x/2, size.y); p.lineTo(0, size.y/2); p.close();
-          canvas.drawPath(p, glowP);
           canvas.drawPath(p, coreP);
       } else {
           // Laser Beams (Rect)
-          var rect = size.toRect();
-          canvas.drawRect(rect, glowP);
-          canvas.drawRect(Rect.fromLTWH(rect.left+2, rect.top+2, rect.width-4, rect.height-4), coreP);
+          canvas.drawRect(glowRect, glowP);
+          canvas.drawRect(size.toRect(), coreP);
       }
   }
 

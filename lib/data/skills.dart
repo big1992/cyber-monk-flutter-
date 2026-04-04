@@ -154,11 +154,13 @@ final List<SkillData> allSkills = [
   ),
   SkillData(
     name: 'Shadow Clone',
-    description: 'Fires an extra stream of attacks at 30% damage.',
+    description: 'Fires an extra stream of attacks at 30% damage. (Max 4)',
     alignment: SkillAlignment.dark,
     icon: Icons.people_outline,
     applyEffect: (player) {
-      player.hasShadowClone = true;
+      if (player.shadowCloneCount < 4) {
+        player.shadowCloneCount++;
+      }
       player.gameRef.karmaSystem.addKarma(-10);
     },
   ),

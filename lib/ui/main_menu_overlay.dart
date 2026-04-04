@@ -113,6 +113,19 @@ class _MainMenuOverlayState extends State<MainMenuOverlay>
               },
             ),
             
+            const SizedBox(height: 30),
+            ElevatedButton(
+              onPressed: () {
+                widget.game.overlays.add('Upgrades');
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white12,
+                side: const BorderSide(color: Colors.cyanAccent),
+                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+              ),
+              child: const Text("DOJO UPGRADES", style: TextStyle(color: Colors.cyanAccent, fontSize: 18, letterSpacing: 2)),
+            ),
+            
             const SizedBox(height: 40),
             const Text(
               'A neon-lit roguelike meditation',

@@ -4,6 +4,7 @@ import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 import '../game/cyber_monk_game.dart';
 import 'player.dart';
+import '../systems/audio_system.dart';
 
 enum PickupType { lightKarma, darkKarma, exp }
 
@@ -59,6 +60,7 @@ class Pickup extends PositionComponent with HasGameRef<CyberMonkGame>, Collision
     super.onCollisionStart(intersectionPoints, other);
 
     if (other is Player && !other.isDead) {
+      AudioSystem.playSFX('reward.wav', volume: 0.3);
       // Apply effect
       if (type == PickupType.lightKarma) {
         gameRef.karmaSystem.addKarma(1);

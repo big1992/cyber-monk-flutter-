@@ -7,8 +7,11 @@ import '../game/cyber_monk_game.dart';
 import 'bullet.dart';
 import 'pickup.dart';
 import 'player.dart';
+import '../systems/audio_system.dart';
 
-enum EnemyType { scrapper, ninja, tank }
+import 'damage_text.dart';
+
+enum EnemyType { scrapper, ninja, tank, kamikaze, turret }
 
 class Enemy extends PositionComponent with HasGameRef<CyberMonkGame>, CollisionCallbacks {
   final EnemyType type;
@@ -41,6 +44,16 @@ class Enemy extends PositionComponent with HasGameRef<CyberMonkGame>, CollisionC
 
   void _setupStats(double mult) {
     switch (type) {
+      case EnemyType.kamikaze:
+        health = 5 * mult;
+        speed = 250;
+        size = Vector2(20, 20);
+        break;
+      case EnemyType.turret:
+        health = 50 * mult;
+        speed = 20; // slowly slides down slightly
+        size = Vector2(40, 40);
+        break;
       case EnemyType.scrapper:
         health = 10 * mult;
         speed = 100;
@@ -93,6 +106,10 @@ class Enemy extends PositionComponent with HasGameRef<CyberMonkGame>, CollisionC
       Path p = Path();
       if (type == EnemyType.scrapper) {
         p.moveTo(0, 0); p.lineTo(size.x, 0); p.lineTo(size.x/2, size.y); p.close();
+      } else if (type == EnemyType.kamikaze) {
+        p.moveTo(size.x/2, size.y); p.lineTo(size.x, 0); p.lineTo(0, 0); p.close(); 
+      } else if (type == EnemyType.turret) {
+        p.moveTo(0, 0); p.lineTo(size.x, 0); p.lineTo(size.x, size.y); p.lineTo(0, size.y); p.close();
       } else if (type == EnemyType.ninja) {
         p.moveTo(size.x/2, 0); p.lineTo(size.x, size.y/2); p.lineTo(size.x/2, size.y); p.lineTo(0, size.y/2); p.close();
       } else if (type == EnemyType.tank) {
@@ -144,7 +161,13 @@ class Enemy extends PositionComponent with HasGameRef<CyberMonkGame>, CollisionC
     switch (type) {
       case EnemyType.scrapper:
       case EnemyType.tank:
+      case EnemyType.turret:
         position.y += speed * currentSlow * dt;
+        break;
+      case EnemyType.kamikaze:
+        // move straight toward the player
+        Vector2 dir = (gameRef.player.position - position).normalized();
+        position.add(dir * speed * currentSlow * dt);
         break;
       case EnemyType.ninja:
         position.y += speed * currentSlow * dt;
@@ -186,6 +209,15 @@ class Enemy extends PositionComponent with HasGameRef<CyberMonkGame>, CollisionC
           paintColor: Colors.purple,
         ));
       }
+    } else if (type == EnemyType.turret && fireTimer >= 2.0) {
+      fireTimer = 0;
+      gameRef.add(Bullet(
+        position: position.clone() + Vector2(0, size.y / 2),
+        velocity: Vector2(0, 400),
+        damage: 15,
+        isPlayerOwned: false,
+        paintColor: Colors.yellowAccent,
+      ));
     }
 
     if (position.y > gameRef.size.y + 100) {
@@ -193,9 +225,31 @@ class Enemy extends PositionComponent with HasGameRef<CyberMonkGame>, CollisionC
     }
   }
 
+  @override
+  void onCollisionStart(Set<Vector2> intersectionPoints, PositionComponent other) {
+    super.onCollisionStart(intersectionPoints, other);
+    
+    if (other is Player && !other.isDead) {
+      if (type == EnemyType.kamikaze) {
+        other.takeDamage(20);
+        die(); // explode on impact
+      } else {
+        // Normal enemies deal small contact damage and bounce slightly? Or just damage
+        other.takeDamage(5);
+        position.y -= 10; // small bump
+      }
+    }
+  }
+
   void takeDamage(double amount, {double dotPct = 0.0, bool isIce = false, bool isFire = false}) {
     health -= amount;
     hitFlashTimer = 0.1; // Flash white for 0.1s feeling
+    AudioSystem.playSFX('hit.wav', volume: 0.4);
+    
+    // Spawn damage number conservatively to save Canvas rendering lag
+    if (amount >= 10.0 || isFire) {
+      gameRef.add(DamageText(text: amount.toInt().toString(), position: position.clone(), isCritical: isFire));
+    }
     
     if (dotPct > 0) {
         dotDamagePerSecond += 10 * dotPct; // Adds a stack
@@ -210,6 +264,7 @@ class Enemy extends PositionComponent with HasGameRef<CyberMonkGame>, CollisionC
 
   void die() {
     isDead = true;
+    AudioSystem.playSFX('explode.wav', volume: 0.5);
     
     // Corpse Explosion
     if (gameRef.player.corpseExplosionDmgPct > 0) {
@@ -224,7 +279,7 @@ class Enemy extends PositionComponent with HasGameRef<CyberMonkGame>, CollisionC
         gameRef.add(ParticleSystemComponent(
             position: position.clone(),
             particle: Particle.generate(
-                count: 40,
+                count: 10,
                 lifespan: 0.6,
                 generator: (i) => AcceleratedParticle(
                     speed: Vector2((rng.nextDouble() - 0.5) * 800, (rng.nextDouble() - 0.5) * 800),
@@ -243,8 +298,8 @@ class Enemy extends PositionComponent with HasGameRef<CyberMonkGame>, CollisionC
         gameRef.add(ParticleSystemComponent(
             position: position.clone(),
             particle: Particle.generate(
-                count: 20,
-                lifespan: 0.4,
+                count: 6,
+                lifespan: 0.3,
                 generator: (i) => AcceleratedParticle(
                     speed: Vector2((rng.nextDouble() - 0.5) * 400, (rng.nextDouble() - 0.5) * 400),
                     child: ComputedParticle(
