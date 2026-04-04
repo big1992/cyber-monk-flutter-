@@ -265,6 +265,13 @@ class Enemy extends PositionComponent with HasGameRef<CyberMonkGame>, CollisionC
   void die() {
     isDead = true;
     AudioSystem.playSFX('explode.wav', volume: 0.5);
+
+    // Ultimate Charge
+    if (gameRef.player.ultimateCharge < gameRef.player.maxUltimateCharge) {
+      gameRef.player.ultimateCharge = (gameRef.player.ultimateCharge + 5).clamp(0.0, gameRef.player.maxUltimateCharge);
+      // Ensure HUD updates
+      gameRef.karmaSystem.notifyListeners();
+    }
     
     // Corpse Explosion
     if (gameRef.player.corpseExplosionDmgPct > 0) {

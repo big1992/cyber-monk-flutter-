@@ -8,6 +8,8 @@ import '../components/boss.dart';
 import '../systems/karma_system.dart';
 import '../data/save_system.dart';
 import '../systems/audio_system.dart';
+import '../components/ultimate_effect.dart';
+import '../components/bullet.dart';
 
 class CyberMonkGame extends FlameGame with PanDetector, HasCollisionDetection {
   late Player player;
@@ -175,5 +177,54 @@ class CyberMonkGame extends FlameGame with PanDetector, HasCollisionDetection {
     overlays.remove('HUD');
     overlays.remove('PauseMenu');
     overlays.add('MainMenu');
+  }
+
+  void activateUltimate() {
+    if (player.ultimateCharge < player.maxUltimateCharge || !isGameStarted || player.isDead) return;
+
+    player.ultimateCharge = 0;
+    karmaSystem.notifyListeners();
+
+    // 1. Wipe hostile bullets
+    for (final bullet in children.whereType<Bullet>()) {
+      if (!bullet.isPlayerOwned) {
+        bullet.removeFromParent();
+      }
+    }
+
+    // 2. Deal massive damage to enemies
+    final enemies = children.whereType<Enemy>().toList();
+    for (final enemy in enemies) {
+      if (!enemy.isDead) enemy.takeDamage(250.0);
+    }
+
+    // 3. Deal massive damage to boss
+    final bosses = children.whereType<Boss>().toList();
+    for (final boss in bosses) {
+      if (!boss.isDead) boss.takeDamage(250.0);
+    }
+
+    // 4. VFX and SFX
+    AudioSystem.playSFX('explode.wav', volume: 1.0);
+    
+    // Play screen shake effect manually
+    camera.viewfinder.add(
+      MoveByEffect(
+        Vector2(15, 15),
+        RepeatedEffectController(
+          SequenceEffectController([
+            LinearEffectController(0.05),
+            ReverseLinearEffectController(0.05),
+          ]), 
+          10
+        ),
+      )
+    );
+
+    // 5. Spawn Ultimate Effect (Cyan Wave)
+    add(UltimateEffect(position: size / 2));
+    
+    // 6. Give player brief safety
+    player.currentInvulnTimer += 2.0;
   }
 }

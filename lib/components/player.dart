@@ -13,6 +13,9 @@ class Player extends PositionComponent with HasGameRef<CyberMonkGame>, Collision
   double baseDamage = 10;
   bool isDead = false;
 
+  double ultimateCharge = 0;
+  double maxUltimateCharge = 100;
+
   double fireTimer = 0;
   // Stats
   double baseFireRateModifier = 0.0;
