@@ -22,7 +22,7 @@ class CyberMonkGame extends FlameGame with PanDetector, HasCollisionDetection {
   // Core system
   bool isGameStarted = false;
 
-  // Boss system
+  int _bulletCapFrame = 0;
   bool bossAlive = false;
   bool bossWarningShown = false;
   int nextBossWave = 5; // First boss at wave 5, then every 5 waves
@@ -69,10 +69,12 @@ class CyberMonkGame extends FlameGame with PanDetector, HasCollisionDetection {
 
     _spawnEnemies(dt);
 
-    // Mobile perf: cap total active player bullets at 80, remove oldest first
-    final playerBullets = children.whereType<Bullet>().where((b) => b.isPlayerOwned).toList();
-    if (playerBullets.length > 80) {
-      playerBullets.first.removeFromParent();
+    // Cap player bullets at 80 — checked every 5 frames to reduce overhead
+    _bulletCapFrame++;
+    if (_bulletCapFrame >= 5) {
+      _bulletCapFrame = 0;
+      final bullets = children.whereType<Bullet>().where((b) => b.isPlayerOwned).toList();
+      if (bullets.length > 80) bullets.first.removeFromParent();
     }
   }
 
@@ -160,6 +162,8 @@ class CyberMonkGame extends FlameGame with PanDetector, HasCollisionDetection {
     overlays.remove('MainMenu');
     overlays.add('HUD');
     AudioSystem.playBGM('bgm.mp3');
+    // Init audio pools AFTER user gesture so Web Audio Context is unlocked
+    AudioSystem.initPools();
   }
 
   void resetGame() {
