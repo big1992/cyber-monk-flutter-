@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:flame/events.dart';
 import 'package:flame/game.dart';
 import 'package:flame/components.dart';
+import 'package:flame/effects.dart';
 import '../components/player.dart';
 import '../components/enemy.dart';
 import '../components/boss.dart';

@@ -30,20 +30,15 @@ class _LevelUpOverlayState extends State<LevelUpOverlay> {
   }
 
   void _selectSkill(SkillData skill) {
-    widget.game.player.acquiredSkills.add(skill);
-    // Apply effect
     skill.applyEffect(widget.game.player);
-
-    // Consume the level up
+    widget.game.player.acquiredSkills.add(skill);
     widget.game.karmaSystem.consumeLevelUp();
 
     if (widget.game.karmaSystem.pendingLevelUps > 0) {
-      // If there are more level ups pending (e.g. they got a lot of EXP at once)
-      setState(() {
-        _rollSkills();
-      });
+      // Re-roll for next pending level up
+      setState(() { _rollSkills(); });
     } else {
-      // Done leveling up for now
+      // All level ups consumed — close overlay and resume
       widget.game.overlays.remove('LevelUp');
       widget.game.resumeEngine();
     }

@@ -23,11 +23,11 @@ class KarmaSystem extends ChangeNotifier {
 
   void addExp(double amount) {
     _exp += amount;
-    if (_exp >= _expToNextLevel) {
+    while (_exp >= _expToNextLevel) {
       _exp -= _expToNextLevel;
       _level++;
       _pendingLevelUps++;
-      _expToNextLevel *= 1.3; // Was 1.5 - slower curve
+      _expToNextLevel *= 1.3;
     }
     notifyListeners();
   }
