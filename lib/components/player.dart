@@ -4,7 +4,6 @@ import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 import '../game/cyber_monk_game.dart';
 import '../data/skills.dart';
-import 'bullet.dart';
 import '../systems/audio_system.dart';
 
 class Player extends PositionComponent with HasGameRef<CyberMonkGame>, CollisionCallbacks {
@@ -233,8 +232,9 @@ class Player extends PositionComponent with HasGameRef<CyberMonkGame>, Collision
         }
     }
 
-    Bullet spawnPlayerBullet(Vector2 pos, Vector2 vel, double dmg, bool homing, bool cleanse) {
-        return Bullet(
+    void spawnPlayerBullet(Vector2 pos, Vector2 vel, double dmg, bool homing, bool cleanse) {
+        gameRef.poolManager.spawnBullet(
+            gameRef,
             position: pos,
             velocity: vel,
             damage: dmg,
@@ -247,47 +247,47 @@ class Player extends PositionComponent with HasGameRef<CyberMonkGame>, Collision
             dotPct: cursedMarkDotPct,
             isIce: elementalSwapActive && !isCurrentlyFire,
             isFire: elementalSwapActive && isCurrentlyFire,
-        )..size = cleanse ? Vector2(100, 10) : Vector2(10, 10);
+        );
     }
 
     // Main shot
     AudioSystem.playSFX('shoot.wav', volume: 0.3, throttleMs: 100);
-    gameRef.add(spawnPlayerBullet(
-      position.clone() - Vector2(0, size.y / 2), 
-      Vector2(0, -500), 
-      currentDamage, 
-      isHomingMode, 
-      isCleansing
-    ));
+    spawnPlayerBullet(
+      position.clone() - Vector2(0, size.y / 2),
+      Vector2(0, -500),
+      currentDamage,
+      isHomingMode,
+      isCleansing,
+    );
 
     // Shadows
     for (int i = 1; i <= shadowCloneCount; i++) {
         double offset = (i % 2 == 1 ? -1 : 1) * 20.0 * ((i + 1) ~/ 2);
-        gameRef.add(spawnPlayerBullet(
-          position.clone() + Vector2(offset, -size.y / 2), 
-          Vector2(0, -500), 
-          currentDamage * 0.3, 
-          isHomingMode, 
-          false
-        ));
+        spawnPlayerBullet(
+          position.clone() + Vector2(offset, -size.y / 2),
+          Vector2(0, -500),
+          currentDamage * 0.3,
+          isHomingMode,
+          false,
+        );
     }
 
     // Twin Dragons
     for (int i = 1; i <= extraProjectiles; i++) {
-      gameRef.add(spawnPlayerBullet(
-        position.clone() - Vector2(0, size.y / 2), 
-        Vector2(-100.0 * i, -500), 
-        currentDamage * 0.8, 
-        false, 
-        false
-      ));
-      gameRef.add(spawnPlayerBullet(
-        position.clone() - Vector2(0, size.y / 2), 
-        Vector2(100.0 * i, -500), 
-        currentDamage * 0.8, 
-        false, 
-        false
-      ));
+      spawnPlayerBullet(
+        position.clone() - Vector2(0, size.y / 2),
+        Vector2(-100.0 * i, -500),
+        currentDamage * 0.8,
+        false,
+        false,
+      );
+      spawnPlayerBullet(
+        position.clone() - Vector2(0, size.y / 2),
+        Vector2(100.0 * i, -500),
+        currentDamage * 0.8,
+        false,
+        false,
+      );
     }
   }
 
@@ -300,15 +300,15 @@ class Player extends PositionComponent with HasGameRef<CyberMonkGame>, Collision
        if (etherealStepInvulnTime > 0) currentInvulnTimer = etherealStepInvulnTime;
        
        if (reflectivePalmDmgPct > 0) {
-           // We just send a homing projectile out
-           gameRef.add(Bullet(
+           gameRef.poolManager.spawnBullet(
+            gameRef,
             position: position.clone(),
             velocity: Vector2(0, -300),
             damage: 10 * reflectivePalmDmgPct,
             isPlayerOwned: true,
             paintColor: Colors.yellow,
             isHoming: true,
-          ));
+          );
        }
        return;
     }

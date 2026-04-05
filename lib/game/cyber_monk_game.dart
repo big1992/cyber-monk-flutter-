@@ -9,12 +9,13 @@ import '../components/boss.dart';
 import '../systems/karma_system.dart';
 import '../data/save_system.dart';
 import '../systems/audio_system.dart';
-import '../components/ultimate_effect.dart';
+import '../systems/pool_manager.dart';
 import '../components/bullet.dart';
 
 class CyberMonkGame extends FlameGame with PanDetector, HasCollisionDetection {
   late Player player;
   final KarmaSystem karmaSystem = KarmaSystem();
+  final PoolManager poolManager = PoolManager();
   int currentWave = 1;
   double waveTimer = 0;
   final Random rng = Random();
@@ -30,6 +31,9 @@ class CyberMonkGame extends FlameGame with PanDetector, HasCollisionDetection {
   @override
   Future<void> onLoad() async {
     await super.onLoad();
+
+    // Initialize object pool manager before any components are spawned
+    poolManager.initialize();
 
     player = Player(
       position: Vector2(size.x / 2, size.y - 100),
@@ -107,11 +111,12 @@ class CyberMonkGame extends FlameGame with PanDetector, HasCollisionDetection {
         startX = rng.nextDouble() > 0.5 ? 20.0 : size.x - 20.0;
       }
 
-      add(Enemy(
+      poolManager.spawnEnemy(
+        this,
         position: Vector2(startX, -50),
         type: type,
         waveMultiplier: 1.0 + (currentWave * 0.2),
-      ));
+      );
 
       if (rng.nextDouble() > 0.95) currentWave++;
     }
@@ -194,12 +199,12 @@ class CyberMonkGame extends FlameGame with PanDetector, HasCollisionDetection {
     if (player.ultimateCharge < player.maxUltimateCharge || !isGameStarted || player.isDead) return;
 
     player.ultimateCharge = 0;
-    karmaSystem.notifyListeners();
+    karmaSystem.notifyHUD();
 
-    // 1. Wipe hostile bullets
-    for (final bullet in children.whereType<Bullet>()) {
+    // 1. Wipe hostile bullets (return to pool)
+    for (final bullet in children.whereType<Bullet>().toList()) {
       if (!bullet.isPlayerOwned) {
-        bullet.removeFromParent();
+        poolManager.releaseBullet(bullet);
       }
     }
 
@@ -233,7 +238,7 @@ class CyberMonkGame extends FlameGame with PanDetector, HasCollisionDetection {
     );
 
     // 5. Spawn Ultimate Effect (Cyan Wave)
-    add(UltimateEffect(position: size / 2));
+    poolManager.spawnUltimateEffect(this, position: size / 2);
     
     // 6. Give player brief safety
     player.currentInvulnTimer += 2.0;

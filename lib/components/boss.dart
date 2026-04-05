@@ -5,9 +5,7 @@ import 'package:flame/particles.dart';
 import 'package:flame/effects.dart';
 import 'package:flutter/material.dart';
 import '../game/cyber_monk_game.dart';
-import 'bullet.dart';
 import 'pickup.dart';
-import 'damage_text.dart';
 import '../systems/audio_system.dart';
 
 enum BossPhase { phase1, phase2, phase3 }
@@ -178,27 +176,28 @@ class Boss extends PositionComponent with HasGameRef<CyberMonkGame>, CollisionCa
     for (int i = 0; i < arms; i++) {
       double angle = spiralAngle + (2 * pi / arms) * i;
       Vector2 vel = Vector2(cos(angle), sin(angle)) * 250;
-      gameRef.add(Bullet(
+      gameRef.poolManager.spawnBullet(
+        gameRef,
         position: position.clone() + Vector2(size.x / 2, size.y / 2),
         velocity: vel,
         damage: _phaseDamage(),
         isPlayerOwned: false,
         paintColor: _phaseColor(),
-      ));
+      );
     }
   }
 
   void _aimedShot() {
-    // Shot aimed directly at player
     Vector2 playerPos = gameRef.player.position;
     Vector2 dir = (playerPos - (position + Vector2(size.x / 2, size.y / 2))).normalized();
-    gameRef.add(Bullet(
+    gameRef.poolManager.spawnBullet(
+      gameRef,
       position: position.clone() + Vector2(size.x / 2, size.y / 2),
       velocity: dir * 350,
       damage: _phaseDamage() * 1.5,
       isPlayerOwned: false,
       paintColor: Colors.white,
-    ));
+    );
   }
 
   void _burstShot() {
@@ -206,13 +205,14 @@ class Boss extends PositionComponent with HasGameRef<CyberMonkGame>, CollisionCa
     for (int i = 0; i < 12; i++) {
       double angle = (2 * pi / 12) * i;
       Vector2 vel = Vector2(cos(angle), sin(angle)) * 200;
-      gameRef.add(Bullet(
+      gameRef.poolManager.spawnBullet(
+        gameRef,
         position: position.clone() + Vector2(size.x / 2, size.y / 2),
         velocity: vel,
         damage: _phaseDamage(),
         isPlayerOwned: false,
         paintColor: Colors.purpleAccent,
-      ));
+      );
     }
   }
 
@@ -237,14 +237,16 @@ class Boss extends PositionComponent with HasGameRef<CyberMonkGame>, CollisionCa
     hitFlashTimer = 0.08;
     AudioSystem.playSFX('hit.wav', volume: 0.6);
 
-    // Spawn damage number
     if (amount >= 1.0) {
-      gameRef.add(DamageText(text: amount.toInt().toString(), position: position.clone(), isCritical: true));
+      gameRef.poolManager.spawnDamageText(
+        gameRef,
+        text: amount.toInt().toString(),
+        position: position.clone(),
+        isCritical: true,
+      );
     }
 
-    if (health <= 0 && !isDead) {
-      die();
-    }
+    if (health <= 0 && !isDead) die();
   }
 
   void die() {
@@ -284,15 +286,25 @@ class Boss extends PositionComponent with HasGameRef<CyberMonkGame>, CollisionCa
 
     // Drop a huge EXP reward
     for (int i = 0; i < 5; i++) {
-      gameRef.add(Pickup(
-        position: position.clone() + Vector2(rng.nextDouble() * 60 - 30, rng.nextDouble() * 60 - 30),
+      gameRef.poolManager.spawnPickup(
+        gameRef,
+        position: position.clone() +
+            Vector2(rng.nextDouble() * 60 - 30, rng.nextDouble() * 60 - 30),
         type: PickupType.exp,
         expValue: 60,
-      ));
+      );
     }
     // Also drop karma orbs
-    gameRef.add(Pickup(position: position.clone(), type: PickupType.lightKarma));
-    gameRef.add(Pickup(position: position.clone() + Vector2(20, 0), type: PickupType.darkKarma));
+    gameRef.poolManager.spawnPickup(
+      gameRef,
+      position: position.clone(),
+      type: PickupType.lightKarma,
+    );
+    gameRef.poolManager.spawnPickup(
+      gameRef,
+      position: position.clone() + Vector2(20, 0),
+      type: PickupType.darkKarma,
+    );
 
     // Notify game that boss is dead
     gameRef.onBossDead();

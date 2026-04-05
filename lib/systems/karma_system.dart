@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 class KarmaSystem extends ChangeNotifier {
   double _karma = 0; // -100 to 100
   double _exp = 0;
-  double _expToNextLevel = 30; // Was 100 - much more achievable
+  double _expToNextLevel = 30;
   int _level = 1;
 
   int _pendingLevelUps = 0;
@@ -44,6 +44,11 @@ class KarmaSystem extends ChangeNotifier {
     _exp = 0;
     _expToNextLevel = 30;
     _level = 1;
+    _pendingLevelUps = 0;
     notifyListeners();
   }
+
+  /// Public method for external components (Enemy, Game) to trigger a HUD
+  /// refresh without accessing the protected [notifyListeners] directly.
+  void notifyHUD() => notifyListeners();
 }
